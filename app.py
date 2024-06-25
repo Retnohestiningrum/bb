@@ -31,11 +31,17 @@ zone_polygon_m = np.array([[160, 100],
 # Download the YOLO model from Google Drive
 @st.cache(allow_output_mutation=True)
 def download_yolo_model():
-    url = 'https://drive.google.com/uc?id=1cs-s_zv2Kl9XspQul8B6djOGTAPgmu6R'  # ID file Anda
+    url = 'https://drive.google.com/uc?id=1cs-s_zv2Kl9XspQul8B6djOGTAPgmu6R'  # URL Google Drive Anda
     output_path = os.path.join(tempfile.gettempdir(), 'best.pt')
-    if not os.path.isfile(output_path):
-        gdown.download(url, output_path, quiet=False)
-    return YOLO(output_path)
+
+    try:
+        if not os.path.isfile(output_path):
+            gdown.download(url, output_path, quiet=False)
+    except gdown.exceptions.FileURLRetrievalError as e:
+        st.error(f"File retrieval error: {str(e)}")
+        return None
+
+    return YOLO(output_path) if os.path.isfile(output_path) else None
 
 # Load the YOLO model (this will be cached)
 model = download_yolo_model()
@@ -179,37 +185,37 @@ def main():
                     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_file_o:
                         temp_filename1 = temp_file_o.name
                         output_path = temp_filename1
-                        out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), 30.0, (int(cap.get(3)), int(cap.get(4))))
-                        results_list = list(results)
-                        for frame_number in range(len(results_list)):
-                            ret, frame = cap.read()
-                            
-                            results_for_frame = results_list[frame_number]
-                            boxes = results_for_frame.boxes.xyxy.cpu().numpy()
-                            masks = results_for_frame.masks.tensor.cpu().numpy() if results_for_frame.masks is not None else None
-                            if results_for_frame.probs is not None:
-                                class_names_dict = results_for_frame.names
-                                class_indices = results_for_frame.probs.argmax(dim=1).cpu().numpy()
-                                class_names = [class_names_dict[class_idx] for class_idx in class_indices]
-                            else:
-                                class_names = []
+                        out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), 30, (int(cap.get(3)), int(cap.get(4))))
 
-                            annotated_frame = draw_annotations(frame.copy(), boxes, masks, class_names)
-                            out.write(annotated_frame)
-                            
-                        cap.release()
-                        out.release()
+                    frame_num = 0
 
-                        video_bytes = open(output_path, "rb")
-                        video_buffer2 = video_bytes.read()
-                        st.video(video_buffer2)
-                        st.success("Video processing completed.")
+                    while True:
+                        ret, img = cap.read()
+                        if not ret:
+                            break
 
-    st.subheader("", divider='rainbow')
-    st.write(':orange[ Classes : ⤵️ ]')
-    cls_name = model.names
-    cls_lst = list(cls_name.values())
-    st.write(f':orange[{cls_lst}]')
+                        frame_num += 1
+                        output = results[frame_num - 1]
+                        boxes = output["boxes"]
+                        masks = output.get("masks", None)
+                        class_ids = output["class_ids"]
+                        class_names = output["class_names"]
+                        scores = output["scores"]
 
-if __name__ == '__main__':
+                        # Draw annotations on frame
+                        annotated_frame = draw_annotations(img, boxes, masks, class_names)
+
+                        # Convert annotated frame to av.VideoFrame
+                        annotated_frame = av.VideoFrame.from_ndarray(annotated_frame, format="bgr24")
+
+                        # Write frame to output video
+                        out.write(annotated_frame.to_ndarray())
+
+                        # Show annotated frame in Streamlit
+                        st.image(annotated_frame.to_ndarray(), channels="BGR")
+
+                    cap.release()
+                    out.release()
+
+if __name__ == "__main__":
     main()
