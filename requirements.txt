@@ -7,3 +7,4 @@ streamlit
 streamlit_webrtc==0.47.1
 supervision==0.16.0
 ultralytics==8.0.208
+gdown
