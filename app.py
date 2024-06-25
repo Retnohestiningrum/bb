@@ -32,10 +32,16 @@ zone_polygon_m = np.array([[160, 100],
 @st.cache(allow_output_mutation=True)
 def download_yolo_model():
     url = 'https://drive.google.com/uc?id=1cs-s_zv2Kl9XspQul8B6djOGTAPgmu6R'  # ID file Anda
-    output_path = os.path.join(tempfile.gettempdir(), 'best.pt')
-    if not os.path.isfile(output_path):
-        gdown.download(url, output_path, quiet=False)
-    return YOLO(output_path)
+    output = 'best.pt'
+    
+    if not os.path.exists(output):
+        try:
+            gdown.download(url, output, quiet=False)
+        except Exception as e:
+            st.error(f"Failed to download YOLO model: {str(e)}")
+            return None
+    
+    return YOLO(output)
 
 # Load the YOLO model (this will be cached)
 model = download_yolo_model()
@@ -89,34 +95,35 @@ def main():
             bytes_data = img_file_buffer.getvalue()
             cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
 
-            results = model.predict(cv2_img)
+            if model is not None:
+                results = model.predict(cv2_img)
 
-            if isinstance(results, list):
-                results1 = results[0]  
-            else:
-                results1 = results
-    
-            detections = sv.Detections.from_ultralytics(results1)
-            detections = detections[detections.confidence > conf]
-            labels = [
-                f"#{index + 1}: {results1.names[class_id]}"
-                for index, class_id in enumerate(detections.class_id)
-            ]
+                if isinstance(results, list):
+                    results1 = results[0]  
+                else:
+                    results1 = results
 
-            labels1 = [
-                f"#{index + 1}: {results1.names[class_id]} (Accuracy: {detections.confidence[index]:.2f})"
-                for index, class_id in enumerate(detections.class_id)
-            ]
+                detections = sv.Detections.from_ultralytics(results1)
+                detections = detections[detections.confidence > conf]
+                labels = [
+                    f"#{index + 1}: {results1.names[class_id]}"
+                    for index, class_id in enumerate(detections.class_id)
+                ]
 
-            annotated_frame1 = box_annotator.annotate(cv2_img, detections=detections)
-            annotated_frame1 = label_annotator.annotate(annotated_frame1, detections=detections, labels=labels)
-            count_text = f"Objects in Frame: {len(detections)}" 
-            cv2.putText(annotated_frame1, count_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2, cv2.LINE_AA)
-            annotated_frame = av.VideoFrame.from_ndarray(annotated_frame1, format="bgr24")
-            st.image(annotated_frame.to_ndarray(), channels="BGR")
-            st.write(':orange[ Info : ⤵️ ]')
-            st.json(labels1)
-            st.subheader("", divider='rainbow')
+                labels1 = [
+                    f"#{index + 1}: {results1.names[class_id]} (Accuracy: {detections.confidence[index]:.2f})"
+                    for index, class_id in enumerate(detections.class_id)
+                ]
+
+                annotated_frame1 = box_annotator.annotate(cv2_img, detections=detections)
+                annotated_frame1 = label_annotator.annotate(annotated_frame1, detections=detections, labels=labels)
+                count_text = f"Objects in Frame: {len(detections)}" 
+                cv2.putText(annotated_frame1, count_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2, cv2.LINE_AA)
+                annotated_frame = av.VideoFrame.from_ndarray(annotated_frame1, format="bgr24")
+                st.image(annotated_frame.to_ndarray(), channels="BGR")
+                st.write(':orange[ Info : ⤵️ ]')
+                st.json(labels1)
+                st.subheader("", divider='rainbow')
 
     elif choice == ":rainbow[Multiple Images Upload -]🖼️🖼️🖼️":
         uploaded_files = st.file_uploader("Choose images", type=['png', 'jpg', 'webp', 'bmp'], accept_multiple_files=True)
@@ -126,34 +133,36 @@ def main():
             bytes_data = uploaded_file.getvalue()
             cv2_img = cv2.imdecode(np.frombuffer(bytes_data, np.uint8), cv2.IMREAD_COLOR)
 
-            results = model.predict(cv2_img)
+            if model is not None:
+                results = model.predict(cv2_img)
 
-            if isinstance(results, list):
-                results1 = results[0]  
-            else:
-                results1 = results
+                if isinstance(results, list):
+                    results1 = results[0]  
+                else:
+                    results1 = results
     
-            detections = sv.Detections.from_ultralytics(results1)
-            detections = detections[detections.confidence > conf]
-            labels = [
-                f"#{index + 1}: {results1.names[class_id]}"
-                for index, class_id in enumerate(detections.class_id)
-            ]
+                detections = sv.Detections.from_ultralytics(results1)
+                detections = detections[detections.confidence > conf]
+                labels = [
+                    f"#{index + 1}: {results1.names[class_id]}"
+                    for index, class_id in enumerate(detections.class_id)
+                ]
 
-            labels1 = [
-                f"#{index + 1}: {results1.names[class_id]} (Accuracy: {detections.confidence[index]:.2f})"
-                for index, class_id in enumerate(detections.class_id)
-            ]
+                labels1 = [
+                    f"#{index + 1}: {results1.names[class_id]} (Accuracy: {detections.confidence[index]:.2f})"
+                    for index, class_id in enumerate(detections.class_id)
+                ]
 
-            annotated_frame1 = box_annotator.annotate(cv2_img, detections=detections)
-            annotated_frame1 = label_annotator.annotate(annotated_frame1, detections=detections, labels=labels)
-            count_text = f"Objects in Frame: {len(detections)}" 
-            cv2.putText(annotated_frame1, count_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2, cv2.LINE_AA)
-            annotated_frame = av.VideoFrame.from_ndarray(annotated_frame1, format="bgr24")
-            st.image(annotated_frame.to_ndarray(), channels="BGR")
-            st.write(':orange[ Info : ⤵️ ]')
-            st.json(labels1)
-            st.subheader("", divider='rainbow')
+                annotated_frame1 = box_annotator.annotate(cv2_img, detections=detections)
+                annotated_frame1 = label_annotator.annotate(annotated_frame1, detections=detections, labels=labels)
+                count_text = f"Objects in Frame: {len(detections)}" 
+                cv2.putText(annotated_frame1, count_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 0), 2, cv2.LINE_AA)
+                annotated_frame = av.VideoFrame.from_ndarray(annotated_frame1, format="bgr24")
+                st.image(annotated_frame.to_ndarray(), channels="BGR")
+                st.write(':orange[ Info : ⤵️ ]')
+                st.json(labels1)
+                st.subheader("", divider='rainbow')
+
     elif choice == "Upload Video":
         st.title("🏗️Work in Progress📽️🎞️")
         clip = st.file_uploader("Choose a video file", type=['mp4'])
@@ -166,50 +175,25 @@ def main():
                 temp_filename = temp_file.name
                 temp_file.write(video_content)
 
-                results = model(temp_filename, show=False, stream=True, save=False)
-                for r in results:
-                    boxes = r.boxes
-                    masks = r.masks
-                    probs = r.probs
-                    orig_img = r.orig_img
-                    video_path = temp_filename
+                if model is not None:
+                    results = model(temp_filename, show=False, stream=True, save=False)
+                    for r in results:
+                        boxes = r.boxes
+                        masks = r.masks
+                        probs = r.probs
+                        orig_img = r.orig_img
+                        video_path = temp_filename
 
-                    cap = cv2.VideoCapture(video_path)
-                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                    with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_file_o:
-                        temp_filename1 = temp_file_o.name
-                        output_path = temp_filename1
-                        out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), 30.0, (int(cap.get(3)), int(cap.get(4))))
-                        results_list = list(results)
-                        for frame_number in range(len(results_list)):
-                            ret, frame = cap.read()
-                            
-                            results_for_frame = results_list[frame_number]
-                            boxes = results_for_frame.boxes.xyxy.cpu().numpy()
-                            masks = results_for_frame.masks.tensor.cpu().numpy() if results_for_frame.masks is not None else None
-                            if results_for_frame.probs is not None:
-                                class_names_dict = results_for_frame.names
-                                class_indices = results_for_frame.probs.argmax(dim=1).cpu().numpy()
-                                class_names = [class_names_dict[class_idx] for class_idx in class_indices]
-                            else:
-                                class_names = []
-
-                            annotated_frame = draw_annotations(frame.copy(), boxes, masks, class_names)
-                            out.write(annotated_frame)
-                            
-                        cap.release()
-                        out.release()
-
-                        video_bytes = open(output_path, "rb")
-                        video_buffer2 = video_bytes.read()
-                        st.video(video_buffer2)
-                        st.success("Video processing completed.")
-
-    st.subheader("", divider='rainbow')
-    st.write(':orange[ Classes : ⤵️ ]')
-    cls_name = model.names
-    cls_lst = list(cls_name.values())
-    st.write(f':orange[{cls_lst}]')
-
-if __name__ == '__main__':
-    main()
+                        cap = cv2.VideoCapture(video_path)
+                        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                        with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as temp_file_o:
+                            temp_filename1 = temp_file_o.name
+                            output_path = temp_filename1
+                            out = cv2.VideoWriter(output_path, cv2.VideoWriter_fourcc(*'mp4v'), 30.0, (int(cap.get(3)), int(cap.get(4))))
+                            results_list = list(results)
+                            for frame_number in range(len(results_list)):
+                                ret, frame = cap.read()
+                                
+                                results_for_frame = results_list[frame_number]
+                                boxes = results_for_frame.boxes.xyxy.cpu().numpy()
+                                masks = results_for_frame.masks.tensor.cpu().numpy
