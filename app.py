@@ -29,12 +29,13 @@ zone_polygon_m = np.array([[160, 100],
                            [481, 100]], dtype=np.int32)
 
 # Download the YOLO model from Google Drive
-@st.cache_resource
+@st.cache(allow_output_mutation=True)
 def download_yolo_model():
     url = 'https://drive.google.com/uc?id=1cs-s_zv2Kl9XspQul8B6djOGTAPgmu6R'  # ID file Anda
-    output = 'best.pt'
-    gdown.download(url, output, quiet=False)
-    return YOLO(output)
+    output_path = os.path.join(tempfile.gettempdir(), 'best.pt')
+    if not os.path.isfile(output_path):
+        gdown.download(url, output_path, quiet=False)
+    return YOLO(output_path)
 
 # Load the YOLO model (this will be cached)
 model = download_yolo_model()
